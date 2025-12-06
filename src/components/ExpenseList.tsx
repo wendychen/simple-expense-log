@@ -79,7 +79,7 @@ const ExpenseList = ({
                 {format(parseISO(date), "EEEE, MMMM d")}
               </h3>
               <span className="text-sm font-medium text-primary">
-                ${dayTotal.toFixed(2)}
+                NT${dayTotal.toFixed(0)}
               </span>
             </div>
             <div className="space-y-2">
@@ -142,7 +142,7 @@ const ExpenseList = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-foreground font-semibold tabular-nums">
-                          ${expense.amount.toFixed(2)}
+                          NT${expense.amount.toFixed(0)}
                         </span>
                         <Button
                           variant="ghost"

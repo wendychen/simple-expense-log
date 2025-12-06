@@ -25,7 +25,7 @@ const ExpenseTracker = () => {
     setExpenses((prev) => [newExpense, ...prev]);
     toast({
       title: "Expense added",
-      description: `${expense.description} - $${expense.amount.toFixed(2)}`,
+      description: `${expense.description} - NT$${expense.amount.toFixed(0)}`,
     });
   };
 
@@ -103,7 +103,7 @@ const ExpenseTracker = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold text-foreground">${total.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-foreground">NT${total.toFixed(0)}</p>
           </div>
           <Button variant="outline" onClick={exportToCSV} className="gap-2">
             <Download className="w-4 h-4" />
