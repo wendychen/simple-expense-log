@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import ExpenseForm from "./ExpenseForm";
 import ExpenseList from "./ExpenseList";
 import ExpenseChart from "./ExpenseChart";
@@ -164,6 +166,27 @@ const ExpenseTracker = () => {
 
         <div className="bg-card rounded-xl shadow-card p-5 mb-6">
           <ExpenseForm onAddExpense={addExpense} />
+        </div>
+
+        <div className="flex items-center gap-3 mb-4 p-3 bg-card rounded-lg shadow-card">
+          <Switch
+            id="future-check"
+            checked={expenses.some(
+              (exp) => exp.date > new Date().toISOString().split("T")[0] && exp.needsCheck
+            )}
+            onCheckedChange={(checked) => {
+              const today = new Date().toISOString().split("T")[0];
+              setExpenses((prev) =>
+                prev.map((exp) =>
+                  exp.date > today ? { ...exp, needsCheck: checked } : exp
+                )
+              );
+            }}
+            className="data-[state=checked]:bg-yellow-400"
+          />
+          <Label htmlFor="future-check" className="text-sm text-muted-foreground cursor-pointer">
+            Mark all future transactions for review
+          </Label>
         </div>
 
         <div className="flex items-center justify-between mb-6">
