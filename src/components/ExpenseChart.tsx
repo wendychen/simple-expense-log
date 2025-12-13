@@ -163,7 +163,7 @@ const ExpenseChart = ({ expenses }: ExpenseChartProps) => {
 
       <div className="mt-4 pt-4 border-t border-border">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">30-day projection</span>
+          <span className="text-sm text-muted-foreground">1-year projection</span>
           <span className="text-lg font-bold text-foreground">{formatCurrency(projection30Days)}</span>
         </div>
       </div>

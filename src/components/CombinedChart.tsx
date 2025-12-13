@@ -257,11 +257,11 @@ const CombinedChart = ({ expenses, savings }: CombinedChartProps) => {
 
       <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">30-day expense projection</span>
+          <span className="text-sm text-muted-foreground">1-year expense projection</span>
           <span className="text-lg font-bold text-foreground">{formatCurrency(chartData.expenseProjection)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">30-day savings projection</span>
+          <span className="text-sm text-muted-foreground">1-year savings projection</span>
           <span className="text-lg font-bold text-emerald-600">{formatCurrency(chartData.savingsProjection)}</span>
         </div>
       </div>
