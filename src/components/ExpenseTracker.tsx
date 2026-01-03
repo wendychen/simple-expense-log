@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -42,6 +43,8 @@ const ExpenseTracker = () => {
     const saved = localStorage.getItem("savings");
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     localStorage.setItem("expenses", JSON.stringify(expenses));
@@ -299,6 +302,25 @@ const ExpenseTracker = () => {
     ? [...savings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].amount
     : 0;
 
+  const filteredExpenses = expenses.filter((exp) =>
+    exp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    exp.date.includes(searchQuery) ||
+    exp.amount.toString().includes(searchQuery)
+  );
+
+  const filteredIncomes = incomes.filter((inc) =>
+    inc.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inc.date.includes(searchQuery) ||
+    inc.amount.toString().includes(searchQuery) ||
+    (inc.note && inc.note.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredSavings = savings.filter((sav) =>
+    sav.date.includes(searchQuery) ||
+    sav.amount.toString().includes(searchQuery) ||
+    (sav.note && sav.note.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-2xl mx-auto">
@@ -306,6 +328,16 @@ const ExpenseTracker = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Cash Flow Tracker</h1>
           <p className="text-muted-foreground">Track your income, spending, and savings</p>
         </header>
+
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
         <Tabs defaultValue="expenses" className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
@@ -341,7 +373,7 @@ const ExpenseTracker = () => {
             </div>
 
             <ExpenseList
-              expenses={expenses}
+              expenses={filteredExpenses}
               onDeleteExpense={deleteExpense}
               onToggleNeedsCheck={toggleNeedsCheck}
               onUpdateExpense={updateExpense}
@@ -354,7 +386,7 @@ const ExpenseTracker = () => {
             </div>
 
             <IncomeList
-              incomes={incomes}
+              incomes={filteredIncomes}
               onDeleteIncome={deleteIncome}
               onUpdateIncome={updateIncome}
             />
@@ -366,7 +398,7 @@ const ExpenseTracker = () => {
             </div>
 
             <SavingList
-              savings={savings}
+              savings={filteredSavings}
               onDeleteSaving={deleteSaving}
               onUpdateSaving={updateSaving}
             />
