@@ -31,18 +31,21 @@ const SavingList = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editReviewCount, setEditReviewCount] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const startEdit = (saving: Saving) => {
     setEditingId(saving.id);
     setEditAmount(saving.amount.toString());
     setEditNote(saving.note || "");
+    setEditReviewCount(saving.reviewCount?.toString() || "");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditAmount("");
     setEditNote("");
+    setEditReviewCount("");
   };
 
   const saveEdit = (id: string) => {
@@ -50,6 +53,7 @@ const SavingList = ({
     onUpdateSaving(id, {
       amount: parseFloat(editAmount),
       note: editNote.trim() || undefined,
+      reviewCount: editReviewCount ? parseInt(editReviewCount) : undefined,
     });
     setEditingId(null);
   };
@@ -84,10 +88,18 @@ const SavingList = ({
             <>
               <div className="flex-1 flex items-center gap-2 mr-2">
                 <Input
+                  type="number"
+                  value={editReviewCount}
+                  onChange={(e) => setEditReviewCount(e.target.value)}
+                  placeholder="Review"
+                  className="h-8 text-sm w-16"
+                  min="0"
+                />
+                <Input
                   value={editNote}
                   onChange={(e) => setEditNote(e.target.value)}
                   placeholder="Note"
-                  className="h-8 text-sm"
+                  className="h-8 text-sm flex-1"
                 />
                 <Input
                   type="number"

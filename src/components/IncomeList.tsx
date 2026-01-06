@@ -32,6 +32,7 @@ const IncomeList = ({
   const [editSource, setEditSource] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editReviewCount, setEditReviewCount] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const startEdit = (income: Income) => {
@@ -39,6 +40,7 @@ const IncomeList = ({
     setEditSource(income.source);
     setEditAmount(income.amount.toString());
     setEditNote(income.note || "");
+    setEditReviewCount(income.reviewCount?.toString() || "");
   };
 
   const cancelEdit = () => {
@@ -46,6 +48,7 @@ const IncomeList = ({
     setEditSource("");
     setEditAmount("");
     setEditNote("");
+    setEditReviewCount("");
   };
 
   const saveEdit = (id: string) => {
@@ -54,6 +57,7 @@ const IncomeList = ({
       source: editSource.trim(),
       amount: parseFloat(editAmount),
       note: editNote.trim() || undefined,
+      reviewCount: editReviewCount ? parseInt(editReviewCount) : undefined,
     });
     setEditingId(null);
   };
@@ -110,6 +114,14 @@ const IncomeList = ({
                   {editingId === income.id ? (
                     <>
                       <div className="flex-1 flex items-center gap-2 mr-2 flex-wrap">
+                        <Input
+                          type="number"
+                          value={editReviewCount}
+                          onChange={(e) => setEditReviewCount(e.target.value)}
+                          placeholder="Review"
+                          className="h-8 text-sm w-16"
+                          min="0"
+                        />
                         <Input
                           value={editSource}
                           onChange={(e) => setEditSource(e.target.value)}
