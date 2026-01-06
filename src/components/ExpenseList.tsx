@@ -34,18 +34,21 @@ const ExpenseList = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDescription, setEditDescription] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editReviewCount, setEditReviewCount] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const startEdit = (expense: Expense) => {
     setEditingId(expense.id);
     setEditDescription(expense.description);
     setEditAmount(expense.amount.toString());
+    setEditReviewCount(expense.reviewCount?.toString() || "");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditDescription("");
     setEditAmount("");
+    setEditReviewCount("");
   };
 
   const saveEdit = (id: string) => {
@@ -53,6 +56,7 @@ const ExpenseList = ({
     onUpdateExpense(id, {
       description: editDescription.trim(),
       amount: parseFloat(editAmount),
+      reviewCount: editReviewCount ? parseInt(editReviewCount) : undefined,
     });
     setEditingId(null);
   };
@@ -113,9 +117,17 @@ const ExpenseList = ({
                     <>
                       <div className="flex-1 flex items-center gap-2 mr-2">
                         <Input
+                          type="number"
+                          value={editReviewCount}
+                          onChange={(e) => setEditReviewCount(e.target.value)}
+                          placeholder="Review"
+                          className="h-8 text-sm w-16"
+                          min="0"
+                        />
+                        <Input
                           value={editDescription}
                           onChange={(e) => setEditDescription(e.target.value)}
-                          className="h-8 text-sm"
+                          className="h-8 text-sm flex-1"
                           autoFocus
                         />
                         <Input
