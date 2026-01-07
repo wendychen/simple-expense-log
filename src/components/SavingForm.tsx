@@ -42,7 +42,7 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
         <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Note (optional)</label>
         <Input
           type="text"
-          placeholder="Monthly savings, bonus, etc."
+          placeholder="Is this saving bringing you closer to living in Canada?"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="bg-card"
