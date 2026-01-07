@@ -72,7 +72,7 @@ const IncomeForm = ({ onAddIncome }: IncomeFormProps) => {
           <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Note (optional)</label>
           <Input
             type="text"
-            placeholder="Additional details..."
+            placeholder="Is this income bringing you closer to living in Canada?"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="bg-card"
