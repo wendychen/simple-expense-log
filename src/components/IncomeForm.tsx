@@ -65,7 +65,7 @@ const IncomeForm = ({ onAddIncome }: IncomeFormProps) => {
             required
           />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-[1.5] min-w-0">
           <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Amount</label>
           <div className="flex gap-2">
             <Input
