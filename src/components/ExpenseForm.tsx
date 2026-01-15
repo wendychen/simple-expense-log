@@ -71,7 +71,7 @@ const ExpenseForm = ({ onAddExpense }: ExpenseFormProps) => {
             min="0"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="bg-card flex-1"
+            className="bg-card flex-[3]"
           />
           <Select value={inputCurrency} onValueChange={(val) => setInputCurrency(val as Currency)}>
             <SelectTrigger className="w-20">
