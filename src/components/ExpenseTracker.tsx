@@ -48,14 +48,15 @@ const ExpenseTracker = () => {
 
   const [goals, setGoals] = useState<Goal[]>(() => {
     const saved = localStorage.getItem("goals");
-    if (saved) return JSON.parse(saved);
-    // Initialize with 10 empty goal slots
-    return Array.from({ length: 10 }, (_, i) => ({
-      id: crypto.randomUUID(),
-      title: "",
-      completed: false,
-      createdAt: new Date().toISOString(),
-    }));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Migrate old goals without deadline
+      return parsed.map((g: Goal) => ({
+        ...g,
+        deadline: g.deadline || "",
+      }));
+    }
+    return [];
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -161,13 +162,14 @@ const ExpenseTracker = () => {
   };
 
   // Goal handlers
-  const addGoal = (title: string) => {
+  const addGoal = (title: string, deadline: string) => {
     const activeGoals = goals.filter((g) => !g.completed && g.title);
     if (activeGoals.length >= 10) return;
 
     const newGoal: Goal = {
       id: crypto.randomUUID(),
       title,
+      deadline,
       completed: false,
       createdAt: new Date().toISOString(),
     };
@@ -227,9 +229,9 @@ const ExpenseTracker = () => {
     if (goalsWithContent.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### GOALS ###\n";
-      csvContent += "Title,Completed,CreatedAt\n";
+      csvContent += "Title,Deadline,Completed,CreatedAt\n";
       goalsWithContent.forEach((goal) => {
-        csvContent += `"${goal.title.replace(/"/g, '""')}",${goal.completed},${goal.createdAt}\n`;
+        csvContent += `"${goal.title.replace(/"/g, '""')}",${goal.deadline || ""},${goal.completed},${goal.createdAt}\n`;
       });
     }
 
@@ -290,13 +292,15 @@ const ExpenseTracker = () => {
           if (currentSection === "goals") {
             if (matches.length < 2) continue;
             const title = matches[0].replace(/"/g, "").trim();
-            const completed = matches[1].replace(/"/g, "").trim().toLowerCase() === "true";
-            const createdAt = matches[2]?.replace(/"/g, "").trim() || new Date().toISOString();
+            const deadline = matches[1]?.replace(/"/g, "").trim() || "";
+            const completed = matches[2]?.replace(/"/g, "").trim().toLowerCase() === "true";
+            const createdAt = matches[3]?.replace(/"/g, "").trim() || new Date().toISOString();
 
             if (title) {
               importedGoals.push({
                 id: crypto.randomUUID(),
                 title,
+                deadline,
                 completed,
                 createdAt,
               });
@@ -344,15 +348,8 @@ const ExpenseTracker = () => {
           if (importedSavings.length > 0) setSavings(importedSavings);
           if (importedGoals.length > 0) {
             // Merge imported goals with empty slots to maintain 10 goals max
-            const emptySlots = 10 - importedGoals.length;
             const finalGoals = [
               ...importedGoals.slice(0, 10),
-              ...Array.from({ length: Math.max(0, emptySlots) }, () => ({
-                id: crypto.randomUUID(),
-                title: "",
-                completed: false,
-                createdAt: new Date().toISOString(),
-              })),
             ];
             setGoals(finalGoals);
           }
