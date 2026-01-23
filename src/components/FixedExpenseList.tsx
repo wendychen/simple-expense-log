@@ -1,0 +1,206 @@
+import { useState } from "react";
+import { Pencil, Trash2, Check, X, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FixedExpense, Frequency, getMonthlyEquivalent } from "@/types/fixedExpense";
+import { useCurrency, Currency } from "@/hooks/use-currency";
+
+interface FixedExpenseListProps {
+  fixedExpenses: FixedExpense[];
+  onUpdateFixedExpense: (id: string, updates: Partial<Omit<FixedExpense, "id">>) => void;
+  onDeleteFixedExpense: (id: string) => void;
+}
+
+const frequencyLabels: Record<Frequency, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  yearly: "Yearly",
+};
+
+const frequencyColors: Record<Frequency, string> = {
+  weekly: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  monthly: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  quarterly: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  yearly: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+};
+
+const FixedExpenseList = ({
+  fixedExpenses,
+  onUpdateFixedExpense,
+  onDeleteFixedExpense,
+}: FixedExpenseListProps) => {
+  const { format, convertToNTD } = useCurrency();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editFrequency, setEditFrequency] = useState<Frequency>("monthly");
+  const [editCurrency, setEditCurrency] = useState<Currency>("NTD");
+
+  const startEdit = (expense: FixedExpense) => {
+    setEditingId(expense.id);
+    setEditDescription(expense.description);
+    setEditAmount(expense.amount.toString());
+    setEditFrequency(expense.frequency);
+    setEditCurrency("NTD");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDescription("");
+    setEditAmount("");
+    setEditFrequency("monthly");
+    setEditCurrency("NTD");
+  };
+
+  const saveEdit = (id: string) => {
+    const parsedAmount = parseFloat(editAmount);
+    if (!editDescription.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    const amountInNTD = convertToNTD(parsedAmount, editCurrency);
+
+    onUpdateFixedExpense(id, {
+      description: editDescription.trim(),
+      amount: amountInNTD,
+      frequency: editFrequency,
+    });
+    cancelEdit();
+  };
+
+  // Calculate total monthly equivalent for active expenses
+  const totalMonthlyEquivalent = fixedExpenses
+    .filter((exp) => exp.isActive)
+    .reduce((sum, exp) => sum + getMonthlyEquivalent(exp.amount, exp.frequency), 0);
+
+  if (fixedExpenses.length === 0) {
+    return (
+      <div className="text-center py-4 text-muted-foreground text-sm">
+        No fixed expenses yet. Add your recurring bills above.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4" />
+          <span>{fixedExpenses.length} fixed expense{fixedExpenses.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Monthly Equivalent</p>
+          <p className="font-semibold text-foreground">{format(totalMonthlyEquivalent)}</p>
+        </div>
+      </div>
+
+      {fixedExpenses.map((expense) => (
+        <div
+          key={expense.id}
+          className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+            expense.isActive
+              ? "bg-card border-border"
+              : "bg-muted/50 border-muted opacity-60"
+          }`}
+        >
+          {editingId === expense.id ? (
+            <div className="flex-1 flex flex-wrap gap-2 items-center">
+              <Input
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="flex-1 min-w-[120px]"
+              />
+              <div className="flex gap-1">
+                <Input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-24"
+                  step="0.01"
+                  min="0"
+                />
+                <Select value={editCurrency} onValueChange={(val) => setEditCurrency(val as Currency)}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NTD">NTD</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="CAD">CAD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Select value={editFrequency} onValueChange={(val) => setEditFrequency(val as Frequency)}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => saveEdit(expense.id)}>
+                  <Check className="h-4 w-4 text-emerald-600" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={cancelEdit}>
+                  <X className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Switch
+                checked={expense.isActive}
+                onCheckedChange={(checked) =>
+                  onUpdateFixedExpense(expense.id, { isActive: checked })
+                }
+                className="data-[state=checked]:bg-primary"
+              />
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium truncate ${!expense.isActive ? "line-through" : ""}`}>
+                  {expense.description}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {format(expense.amount)}{" "}
+                  {expense.frequency !== "monthly" && (
+                    <span className="text-xs">
+                      (≈ {format(getMonthlyEquivalent(expense.amount, expense.frequency))}/mo)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <Badge variant="secondary" className={frequencyColors[expense.frequency]}>
+                {frequencyLabels[expense.frequency]}
+              </Badge>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => startEdit(expense)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => onDeleteFixedExpense(expense.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default FixedExpenseList;

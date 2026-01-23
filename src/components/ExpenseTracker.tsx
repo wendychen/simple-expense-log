@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select";
 import ExpenseForm from "./ExpenseForm";
 import ExpenseList from "./ExpenseList";
+import FixedExpenseForm from "./FixedExpenseForm";
+import FixedExpenseList from "./FixedExpenseList";
 import IncomeForm from "./IncomeForm";
 import IncomeList from "./IncomeList";
 import SavingForm from "./SavingForm";
@@ -21,6 +23,7 @@ import SavingList from "./SavingList";
 import GoalList from "./GoalList";
 import CombinedChart from "./CombinedChart";
 import { Expense } from "@/types/expense";
+import { FixedExpense } from "@/types/fixedExpense";
 import { Income } from "@/types/income";
 import { Saving } from "@/types/saving";
 import { Goal } from "@/types/goal";
@@ -60,6 +63,11 @@ const ExpenseTracker = () => {
     return [];
   });
 
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>(() => {
+    const saved = localStorage.getItem("fixedExpenses");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -77,6 +85,10 @@ const ExpenseTracker = () => {
   useEffect(() => {
     localStorage.setItem("goals", JSON.stringify(goals));
   }, [goals]);
+
+  useEffect(() => {
+    localStorage.setItem("fixedExpenses", JSON.stringify(fixedExpenses));
+  }, [fixedExpenses]);
 
   // Expense handlers
   const addExpense = (expense: Omit<Expense, "id">) => {
@@ -189,10 +201,36 @@ const ExpenseTracker = () => {
     );
   };
 
+  // Fixed Expense handlers
+  const addFixedExpense = (expense: Omit<FixedExpense, "id" | "createdAt">) => {
+    const newExpense: FixedExpense = {
+      ...expense,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    setFixedExpenses((prev) => [...prev, newExpense]);
+    toast({
+      title: "Fixed expense added",
+      description: `${expense.description} - ${format(expense.amount)}`,
+    });
+  };
+
+  const deleteFixedExpense = (id: string) => {
+    setFixedExpenses((prev) => prev.filter((exp) => exp.id !== id));
+    toast({ title: "Fixed expense deleted" });
+  };
+
+  const updateFixedExpense = (id: string, updates: Partial<Omit<FixedExpense, "id">>) => {
+    setFixedExpenses((prev) =>
+      prev.map((exp) => (exp.id === id ? { ...exp, ...updates } : exp))
+    );
+    toast({ title: "Fixed expense updated" });
+  };
+
   // Export/Import
   const exportToCSV = () => {
     const goalsWithContent = goals.filter((g) => g.title.trim());
-    if (expenses.length === 0 && incomes.length === 0 && savings.length === 0 && goalsWithContent.length === 0) {
+    if (expenses.length === 0 && incomes.length === 0 && savings.length === 0 && goalsWithContent.length === 0 && fixedExpenses.length === 0) {
       toast({
         title: "No data to export",
         variant: "destructive",
@@ -202,8 +240,18 @@ const ExpenseTracker = () => {
 
     let csvContent = "";
 
+    // Export fixed expenses
+    if (fixedExpenses.length > 0) {
+      csvContent += "### FIXED EXPENSES ###\n";
+      csvContent += "Description,Amount,Frequency,IsActive,CreatedAt\n";
+      fixedExpenses.forEach((exp) => {
+        csvContent += `"${exp.description.replace(/"/g, '""')}",${exp.amount.toFixed(2)},${exp.frequency},${exp.isActive},${exp.createdAt}\n`;
+      });
+    }
+
     // Export expenses
     if (expenses.length > 0) {
+      if (csvContent) csvContent += "\n";
       csvContent += "### EXPENSES ###\n";
       csvContent += "Date,Description,Amount\n";
       expenses.forEach((exp) => {
@@ -253,7 +301,7 @@ const ExpenseTracker = () => {
 
     toast({
       title: "Exported successfully",
-      description: `${expenses.length} expenses, ${incomes.length} incomes, ${savings.length} savings, ${goalsWithContent.length} goals exported`,
+      description: `${fixedExpenses.length} fixed, ${expenses.length} expenses, ${incomes.length} incomes, ${savings.length} savings, ${goalsWithContent.length} goals`,
     });
   };
 
@@ -271,9 +319,14 @@ const ExpenseTracker = () => {
         const importedIncomes: Income[] = [];
         const importedSavings: Saving[] = [];
         const importedGoals: Goal[] = [];
-        let currentSection: "expenses" | "incomes" | "savings" | "goals" | null = null;
+        const importedFixedExpenses: FixedExpense[] = [];
+        let currentSection: "expenses" | "incomes" | "savings" | "goals" | "fixedExpenses" | null = null;
 
         for (const line of lines) {
+          if (line.includes("### FIXED EXPENSES ###")) {
+            currentSection = "fixedExpenses";
+            continue;
+          }
           if (line.includes("### EXPENSES ###")) {
             currentSection = "expenses";
             continue;
@@ -290,12 +343,30 @@ const ExpenseTracker = () => {
             currentSection = "goals";
             continue;
           }
-          if (line.toLowerCase().startsWith("date,") || line.toLowerCase().startsWith("title,")) continue;
+          if (line.toLowerCase().startsWith("date,") || line.toLowerCase().startsWith("title,") || line.toLowerCase().startsWith("description,")) continue;
 
           const matches = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
           if (!matches) continue;
 
-          if (currentSection === "goals") {
+          if (currentSection === "fixedExpenses") {
+            if (matches.length < 3) continue;
+            const description = matches[0].replace(/"/g, "").trim();
+            const amount = parseFloat(matches[1].replace(/"/g, "").trim());
+            const frequency = matches[2]?.replace(/"/g, "").trim() as "weekly" | "monthly" | "quarterly" | "yearly";
+            const isActive = matches[3]?.replace(/"/g, "").trim().toLowerCase() !== "false";
+            const createdAt = matches[4]?.replace(/"/g, "").trim() || new Date().toISOString();
+
+            if (description && !isNaN(amount)) {
+              importedFixedExpenses.push({
+                id: crypto.randomUUID(),
+                description,
+                amount,
+                frequency: frequency || "monthly",
+                isActive,
+                createdAt,
+              });
+            }
+          } else if (currentSection === "goals") {
             if (matches.length < 2) continue;
             const title = matches[0].replace(/"/g, "").trim();
             const deadline = matches[1]?.replace(/"/g, "").trim() || "";
@@ -349,21 +420,19 @@ const ExpenseTracker = () => {
           }
         }
 
-        const hasData = importedExpenses.length > 0 || importedIncomes.length > 0 || importedSavings.length > 0 || importedGoals.length > 0;
+        const hasData = importedExpenses.length > 0 || importedIncomes.length > 0 || importedSavings.length > 0 || importedGoals.length > 0 || importedFixedExpenses.length > 0;
         if (hasData) {
+          if (importedFixedExpenses.length > 0) setFixedExpenses(importedFixedExpenses);
           if (importedExpenses.length > 0) setExpenses(importedExpenses);
           if (importedIncomes.length > 0) setIncomes(importedIncomes);
           if (importedSavings.length > 0) setSavings(importedSavings);
           if (importedGoals.length > 0) {
-            // Merge imported goals with empty slots to maintain 10 goals max
-            const finalGoals = [
-              ...importedGoals.slice(0, 10),
-            ];
+            const finalGoals = [...importedGoals.slice(0, 10)];
             setGoals(finalGoals);
           }
           toast({
             title: "Imported successfully",
-            description: `${importedExpenses.length} expenses, ${importedIncomes.length} incomes, ${importedSavings.length} savings, ${importedGoals.length} goals imported`,
+            description: `${importedFixedExpenses.length} fixed, ${importedExpenses.length} expenses, ${importedIncomes.length} incomes, ${importedSavings.length} savings, ${importedGoals.length} goals`,
           });
         } else {
           toast({
@@ -439,6 +508,21 @@ const ExpenseTracker = () => {
           </TabsList>
 
           <TabsContent value="expenses" className="space-y-4">
+            {/* Fixed Expenses Section */}
+            <div className="bg-card rounded-xl shadow-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                🔄 Fixed Expenses
+              </h3>
+              <FixedExpenseForm onAddFixedExpense={addFixedExpense} />
+              <div className="mt-4">
+                <FixedExpenseList
+                  fixedExpenses={fixedExpenses}
+                  onUpdateFixedExpense={updateFixedExpense}
+                  onDeleteFixedExpense={deleteFixedExpense}
+                />
+              </div>
+            </div>
+
             <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center">
               <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">
                 🍁 Is spending this money driving you away from living in Canada?
@@ -446,6 +530,7 @@ const ExpenseTracker = () => {
             </div>
 
             <div className="bg-card rounded-xl shadow-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-3">One-time Expenses</h3>
               <ExpenseForm onAddExpense={addExpense} />
             </div>
 
