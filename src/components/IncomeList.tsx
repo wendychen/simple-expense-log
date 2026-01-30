@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Trash2, Pencil, Check, X } from "lucide-react";
+import { Trash2, Pencil, Check, X, Banknote, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Income } from "@/types/income";
+import { Badge } from "@/components/ui/badge";
+import { Income, IncomeType } from "@/types/income";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 import {
   Select,
@@ -39,6 +40,7 @@ const IncomeList = ({
   const [editSource, setEditSource] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editCurrency, setEditCurrency] = useState<Currency>("NTD");
+  const [editIncomeType, setEditIncomeType] = useState<IncomeType>("cash");
   const [editNote, setEditNote] = useState("");
   const [editReviewCount, setEditReviewCount] = useState("");
   const [editDate, setEditDate] = useState("");
@@ -47,9 +49,9 @@ const IncomeList = ({
   const startEdit = (income: Income) => {
     setEditingId(income.id);
     setEditSource(income.source);
-    // Convert stored NTD to current display currency for editing
     setEditAmount(convertFromNTD(income.amount, currency).toFixed(currency === "NTD" ? 0 : 2));
     setEditCurrency(currency);
+    setEditIncomeType(income.incomeType || "cash");
     setEditNote(income.note || "");
     setEditReviewCount(income.reviewCount?.toString() || "");
     setEditDate(income.date);
@@ -59,6 +61,7 @@ const IncomeList = ({
     setEditingId(null);
     setEditSource("");
     setEditAmount("");
+    setEditIncomeType("cash");
     setEditNote("");
     setEditReviewCount("");
     setEditDate("");
@@ -70,6 +73,7 @@ const IncomeList = ({
     onUpdateIncome(id, {
       source: editSource.trim(),
       amount: amountInNTD,
+      incomeType: editIncomeType,
       note: editNote.trim() || undefined,
       reviewCount: editReviewCount ? parseInt(editReviewCount) : undefined,
       date: editDate,
@@ -135,6 +139,15 @@ const IncomeList = ({
                           onChange={(e) => setEditDate(e.target.value)}
                           className="h-8 text-sm w-32"
                         />
+                        <Select value={editIncomeType} onValueChange={(val) => setEditIncomeType(val as IncomeType)}>
+                          <SelectTrigger className="h-8 w-24 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="accrued">Accrued</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Input
                           type="number"
                           value={editReviewCount}
@@ -207,6 +220,20 @@ const IncomeList = ({
                           placeholder="0"
                           className="h-7 w-12 text-xs text-center shrink-0"
                         />
+                        <Badge 
+                          variant="outline" 
+                          className={`shrink-0 text-xs ${
+                            income.incomeType === "accrued" 
+                              ? "border-amber-500 text-amber-600 dark:text-amber-400" 
+                              : "border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                          }`}
+                        >
+                          {income.incomeType === "accrued" ? (
+                            <><Clock className="w-3 h-3 mr-1" />Accrued</>
+                          ) : (
+                            <><Banknote className="w-3 h-3 mr-1" />Cash</>
+                          )}
+                        </Badge>
                         <span className="font-medium text-foreground">{income.source}</span>
                         {income.note && (
                           <span className="text-sm text-muted-foreground truncate">

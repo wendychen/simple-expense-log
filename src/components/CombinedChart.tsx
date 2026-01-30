@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { format, parseISO, addDays } from "date-fns";
 import {
   LineChart,
@@ -9,21 +9,113 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import { Expense } from "@/types/expense";
 import { Income } from "@/types/income";
 import { Saving } from "@/types/saving";
-import { TrendingUp, PiggyBank, Wallet } from "lucide-react";
-import { useCurrency } from "@/hooks/use-currency";
+import { FinancialTarget, TargetType, TargetPeriod } from "@/types/target";
+import { TimePeriod } from "./TimeNavigator";
+import { TrendingUp, PiggyBank, Wallet, Target } from "lucide-react";
+import { useCurrency, Currency } from "@/hooks/use-currency";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CombinedChartProps {
   expenses: Expense[];
   incomes: Income[];
   savings: Saving[];
+  targets?: FinancialTarget[];
+  onUpdateTarget?: (type: TargetType, amount: number, period: TargetPeriod, currency: Currency) => void;
+  selectedPeriod?: TimePeriod | null;
 }
 
-const CombinedChart = ({ expenses, incomes, savings }: CombinedChartProps) => {
-  const { format: formatCurrency, convert, symbol } = useCurrency();
+const CombinedChart = ({ expenses, incomes, savings, targets = [], onUpdateTarget, selectedPeriod }: CombinedChartProps) => {
+  const { format: formatCurrency, convert, symbol, currency, convertToNTD, convertFromNTD } = useCurrency();
+  
+  const [editingTarget, setEditingTarget] = useState<{
+    type: TargetType;
+    period: TargetPeriod;
+    amount: string;
+  } | null>(null);
+  const [showTargetDialog, setShowTargetDialog] = useState(false);
+  const [newTargetType, setNewTargetType] = useState<TargetType>("income");
+  const [newTargetPeriod, setNewTargetPeriod] = useState<TargetPeriod>("monthly");
+  const [newTargetAmount, setNewTargetAmount] = useState("");
+
+  const getPeriodFromSelection = useCallback((): TargetPeriod => {
+    if (!selectedPeriod) return "monthly";
+    const daysDiff = Math.ceil((selectedPeriod.endDate.getTime() - selectedPeriod.startDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff <= 7) return "weekly";
+    if (daysDiff <= 31) return "monthly";
+    if (daysDiff <= 92) return "quarterly";
+    return "yearly";
+  }, [selectedPeriod]);
+
+  const currentPeriod = getPeriodFromSelection();
+
+  const relevantTargets = useMemo(() => {
+    return targets.filter(t => t.period === currentPeriod && t.currency === currency);
+  }, [targets, currentPeriod, currency]);
+
+  const getTargetValue = (type: TargetType): number | null => {
+    const target = relevantTargets.find(t => t.type === type);
+    return target ? target.amount : null;
+  };
+
+  const handleConfirmTargetUpdate = () => {
+    if (editingTarget && onUpdateTarget) {
+      const parsed = parseFloat(editingTarget.amount);
+      if (isNaN(parsed) || parsed <= 0) return;
+      const amountInNTD = convertToNTD(parsed, currency);
+      onUpdateTarget(editingTarget.type, amountInNTD, editingTarget.period, currency);
+      setEditingTarget(null);
+    }
+  };
+
+  const handleAddTarget = () => {
+    if (onUpdateTarget && newTargetAmount) {
+      const parsed = parseFloat(newTargetAmount);
+      if (isNaN(parsed) || parsed <= 0) return;
+      const amountInNTD = convertToNTD(parsed, currency);
+      onUpdateTarget(newTargetType, amountInNTD, newTargetPeriod, currency);
+      setShowTargetDialog(false);
+      setNewTargetAmount("");
+    }
+  };
+
+  const isEditTargetValid = editingTarget && !isNaN(parseFloat(editingTarget.amount)) && parseFloat(editingTarget.amount) > 0;
+  const isNewTargetValid = newTargetAmount && !isNaN(parseFloat(newTargetAmount)) && parseFloat(newTargetAmount) > 0;
+
+  const openEditDialog = (type: TargetType) => {
+    const target = relevantTargets.find(t => t.type === type);
+    if (target) {
+      setEditingTarget({
+        type,
+        period: currentPeriod,
+        amount: convertFromNTD(target.amount, currency).toFixed(currency === "NTD" ? 0 : 2),
+      });
+    } else {
+      setNewTargetType(type);
+      setNewTargetPeriod(currentPeriod);
+      setShowTargetDialog(true);
+    }
+  };
 
   const chartData = useMemo(() => {
     if (expenses.length === 0 && incomes.length === 0 && savings.length === 0) {
@@ -330,6 +422,49 @@ const CombinedChart = ({ expenses, incomes, savings }: CombinedChartProps) => {
               opacity={0.6}
               connectNulls={false}
             />
+            {/* Target reference lines */}
+            {getTargetValue("income") !== null && (
+              <ReferenceLine
+                y={getTargetValue("income")!}
+                stroke="hsl(263, 70%, 50%)"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{
+                  value: `Income Target: ${formatCurrency(getTargetValue("income")!)}`,
+                  position: "insideTopRight",
+                  fill: "hsl(263, 70%, 50%)",
+                  fontSize: 10,
+                }}
+              />
+            )}
+            {getTargetValue("expense") !== null && (
+              <ReferenceLine
+                y={getTargetValue("expense")!}
+                stroke="hsl(0, 70%, 50%)"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{
+                  value: `Expense Limit: ${formatCurrency(getTargetValue("expense")!)}`,
+                  position: "insideTopRight",
+                  fill: "hsl(0, 70%, 50%)",
+                  fontSize: 10,
+                }}
+              />
+            )}
+            {getTargetValue("savings") !== null && (
+              <ReferenceLine
+                y={getTargetValue("savings")!}
+                stroke="hsl(152, 60%, 45%)"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{
+                  value: `Savings Target: ${formatCurrency(getTargetValue("savings")!)}`,
+                  position: "insideTopRight",
+                  fill: "hsl(152, 60%, 45%)",
+                  fontSize: 10,
+                }}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -354,6 +489,142 @@ const CombinedChart = ({ expenses, incomes, savings }: CombinedChartProps) => {
           </span>
         </div>
       </div>
+
+      {onUpdateTarget && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              {currentPeriod.charAt(0).toUpperCase() + currentPeriod.slice(1)} Targets ({currency})
+            </h3>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowTargetDialog(true)}
+              data-testid="button-add-target"
+            >
+              + Add Target
+            </Button>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => openEditDialog("income")}
+              className="p-3 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950 hover:bg-violet-100 dark:hover:bg-violet-900 transition-colors text-left"
+              data-testid="button-edit-income-target"
+            >
+              <div className="text-xs text-violet-600 dark:text-violet-400">Income Target</div>
+              <div className="text-lg font-bold text-violet-700 dark:text-violet-300">
+                {getTargetValue("income") !== null ? formatCurrency(getTargetValue("income")!) : "Not set"}
+              </div>
+            </button>
+            <button
+              onClick={() => openEditDialog("expense")}
+              className="p-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-left"
+              data-testid="button-edit-expense-target"
+            >
+              <div className="text-xs text-red-600 dark:text-red-400">Expense Limit</div>
+              <div className="text-lg font-bold text-red-700 dark:text-red-300">
+                {getTargetValue("expense") !== null ? formatCurrency(getTargetValue("expense")!) : "Not set"}
+              </div>
+            </button>
+            <button
+              onClick={() => openEditDialog("savings")}
+              className="p-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors text-left"
+              data-testid="button-edit-savings-target"
+            >
+              <div className="text-xs text-emerald-600 dark:text-emerald-400">Savings Target</div>
+              <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                {getTargetValue("savings") !== null ? formatCurrency(getTargetValue("savings")!) : "Not set"}
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={!!editingTarget} onOpenChange={() => setEditingTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update {editingTarget?.type} Target</DialogTitle>
+            <DialogDescription>
+              Update your {currentPeriod} {editingTarget?.type} target for {currency}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Amount ({currency})</label>
+            <Input
+              type="number"
+              value={editingTarget?.amount || ""}
+              onChange={(e) => setEditingTarget(prev => prev ? {...prev, amount: e.target.value} : null)}
+              placeholder="Enter target amount"
+              className="mt-1"
+              data-testid="input-edit-target-amount"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTarget(null)}>Cancel</Button>
+            <Button onClick={handleConfirmTargetUpdate} disabled={!isEditTargetValid} data-testid="button-confirm-target">
+              Update Target
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTargetDialog} onOpenChange={setShowTargetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Target</DialogTitle>
+            <DialogDescription>
+              Set a financial target for tracking your progress.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Target Type</label>
+              <Select value={newTargetType} onValueChange={(val) => setNewTargetType(val as TargetType)}>
+                <SelectTrigger className="mt-1" data-testid="select-target-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income Target</SelectItem>
+                  <SelectItem value="expense">Expense Limit</SelectItem>
+                  <SelectItem value="savings">Savings Target</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Period</label>
+              <Select value={newTargetPeriod} onValueChange={(val) => setNewTargetPeriod(val as TargetPeriod)}>
+                <SelectTrigger className="mt-1" data-testid="select-target-period">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Amount ({currency})</label>
+              <Input
+                type="number"
+                value={newTargetAmount}
+                onChange={(e) => setNewTargetAmount(e.target.value)}
+                placeholder="Enter target amount"
+                className="mt-1"
+                data-testid="input-new-target-amount"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTargetDialog(false)}>Cancel</Button>
+            <Button onClick={handleAddTarget} disabled={!isNewTargetValid} data-testid="button-save-target">
+              Save Target
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

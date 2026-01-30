@@ -29,6 +29,7 @@ import { FixedExpense } from "@/types/fixedExpense";
 import { Income } from "@/types/income";
 import { Saving } from "@/types/saving";
 import { Goal } from "@/types/goal";
+import { FinancialTarget } from "@/types/target";
 import { toast } from "@/hooks/use-toast";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 
@@ -77,6 +78,11 @@ const ExpenseTracker = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [targets, setTargets] = useState<FinancialTarget[]>(() => {
+    const saved = localStorage.getItem("financialTargets");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -98,6 +104,42 @@ const ExpenseTracker = () => {
   useEffect(() => {
     localStorage.setItem("fixedExpenses", JSON.stringify(fixedExpenses));
   }, [fixedExpenses]);
+
+  useEffect(() => {
+    localStorage.setItem("financialTargets", JSON.stringify(targets));
+  }, [targets]);
+
+  // Target handlers
+  const updateTarget = (type: FinancialTarget["type"], amount: number, period: FinancialTarget["period"], targetCurrency: Currency) => {
+    setTargets(prev => {
+      const existingIndex = prev.findIndex(t => t.type === type && t.period === period && t.currency === targetCurrency);
+      const now = new Date().toISOString();
+      
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          amount,
+          updatedAt: now,
+        };
+        return updated;
+      } else {
+        return [...prev, {
+          id: crypto.randomUUID(),
+          type,
+          amount,
+          currency: targetCurrency,
+          period,
+          createdAt: now,
+          updatedAt: now,
+        }];
+      }
+    });
+  };
+
+  const getTarget = (type: FinancialTarget["type"], period: FinancialTarget["period"], targetCurrency: Currency): FinancialTarget | undefined => {
+    return targets.find(t => t.type === type && t.period === period && t.currency === targetCurrency);
+  };
 
   // Expense handlers
   const addExpense = (expense: Omit<Expense, "id">) => {
@@ -416,6 +458,7 @@ const ExpenseTracker = () => {
                 date,
                 source: field2,
                 amount,
+                incomeType: "cash",
                 note: field4 || undefined,
               });
             } else if (currentSection === "savings") {
@@ -693,7 +736,14 @@ const ExpenseTracker = () => {
               fixedExpenses={fixedExpenses}
             />
 
-            <CombinedChart expenses={periodFilteredExpenses} incomes={periodFilteredIncomes} savings={periodFilteredSavings} />
+            <CombinedChart 
+              expenses={periodFilteredExpenses} 
+              incomes={periodFilteredIncomes} 
+              savings={periodFilteredSavings}
+              targets={targets}
+              onUpdateTarget={updateTarget}
+              selectedPeriod={selectedPeriod}
+            />
           </main>
         </div>
       </div>

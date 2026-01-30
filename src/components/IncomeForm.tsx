@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wallet } from "lucide-react";
-import { Income } from "@/types/income";
+import { Income, IncomeType } from "@/types/income";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 import {
   Select,
@@ -22,6 +22,7 @@ const IncomeForm = ({ onAddIncome }: IncomeFormProps) => {
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
   const [inputCurrency, setInputCurrency] = useState<Currency>("NTD");
+  const [incomeType, setIncomeType] = useState<IncomeType>("cash");
   const [note, setNote] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,6 +35,7 @@ const IncomeForm = ({ onAddIncome }: IncomeFormProps) => {
       date,
       source: source.trim(),
       amount: amountInNTD,
+      incomeType,
       note: note.trim() || undefined,
     });
 
@@ -53,6 +55,18 @@ const IncomeForm = ({ onAddIncome }: IncomeFormProps) => {
             onChange={(e) => setDate(e.target.value)}
             className="bg-card"
           />
+        </div>
+        <div className="flex-1 min-w-0">
+          <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Type</label>
+          <Select value={incomeType} onValueChange={(val) => setIncomeType(val as IncomeType)}>
+            <SelectTrigger className="bg-card" data-testid="select-income-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Cash</SelectItem>
+              <SelectItem value="accrued">Accrued</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex-[2] min-w-0">
           <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Source</label>
