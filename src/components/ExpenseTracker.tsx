@@ -23,6 +23,7 @@ import SavingList from "./SavingList";
 import GoalList from "./GoalList";
 import CombinedChart from "./CombinedChart";
 import MonthlySummary from "./MonthlySummary";
+import TimeNavigator, { TimePeriod } from "./TimeNavigator";
 import { Expense } from "@/types/expense";
 import { FixedExpense } from "@/types/fixedExpense";
 import { Income } from "@/types/income";
@@ -31,9 +32,16 @@ import { Goal } from "@/types/goal";
 import { toast } from "@/hooks/use-toast";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 
+const isDateInPeriod = (dateStr: string, period: TimePeriod | null): boolean => {
+  if (!period) return true;
+  const date = new Date(dateStr);
+  return date >= period.startDate && date <= period.endDate;
+};
+
 const ExpenseTracker = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { format, currency, setCurrency } = useCurrency();
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod | null>(null);
   
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem("expenses");
@@ -457,51 +465,80 @@ const ExpenseTracker = () => {
     }
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const totalIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0);
+  const periodFilteredExpenses = expenses.filter((exp) => isDateInPeriod(exp.date, selectedPeriod));
+  const periodFilteredIncomes = incomes.filter((inc) => isDateInPeriod(inc.date, selectedPeriod));
+  const periodFilteredSavings = savings.filter((sav) => isDateInPeriod(sav.date, selectedPeriod));
+
+  const totalExpenses = periodFilteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalIncomes = periodFilteredIncomes.reduce((sum, inc) => sum + inc.amount, 0);
   const netCashFlow = totalIncomes - totalExpenses;
-  const latestSavings = savings.length > 0
-    ? [...savings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].amount
+  const latestSavings = periodFilteredSavings.length > 0
+    ? [...periodFilteredSavings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].amount
     : 0;
 
   const filteredExpenses = expenses.filter((exp) =>
-    exp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exp.date.includes(searchQuery) ||
-    exp.amount.toString().includes(searchQuery)
+    isDateInPeriod(exp.date, selectedPeriod) && (
+      exp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      exp.date.includes(searchQuery) ||
+      exp.amount.toString().includes(searchQuery)
+    )
   );
 
   const filteredIncomes = incomes.filter((inc) =>
-    inc.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    inc.date.includes(searchQuery) ||
-    inc.amount.toString().includes(searchQuery) ||
-    (inc.note && inc.note.toLowerCase().includes(searchQuery.toLowerCase()))
+    isDateInPeriod(inc.date, selectedPeriod) && (
+      inc.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inc.date.includes(searchQuery) ||
+      inc.amount.toString().includes(searchQuery) ||
+      (inc.note && inc.note.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   );
 
   const filteredSavings = savings.filter((sav) =>
-    sav.date.includes(searchQuery) ||
-    sav.amount.toString().includes(searchQuery) ||
-    (sav.note && sav.note.toLowerCase().includes(searchQuery.toLowerCase()))
+    isDateInPeriod(sav.date, selectedPeriod) && (
+      sav.date.includes(searchQuery) ||
+      sav.amount.toString().includes(searchQuery) ||
+      (sav.note && sav.note.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   );
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <header className="text-center mb-8">
+    <div className="min-h-screen bg-background py-6 px-4">
+      <div className="max-w-6xl mx-auto">
+        <header className="text-center mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">Cash Flow Tracker</h1>
           <p className="text-muted-foreground">Track your income, spending, and savings</p>
         </header>
 
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search transactions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <div className="flex gap-6">
+          <aside className="w-64 flex-shrink-0 hidden lg:block">
+            <div className="sticky top-6">
+              <TimeNavigator
+                selectedPeriod={selectedPeriod}
+                onSelectPeriod={setSelectedPeriod}
+              />
+            </div>
+          </aside>
 
-        <Tabs defaultValue="expenses" className="mb-6">
+          <main className="flex-1 min-w-0">
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search transactions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="input-search"
+              />
+            </div>
+
+            <div className="lg:hidden mb-4">
+              <TimeNavigator
+                selectedPeriod={selectedPeriod}
+                onSelectPeriod={setSelectedPeriod}
+              />
+            </div>
+
+            <Tabs defaultValue="expenses" className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="income">Income</TabsTrigger>
@@ -595,68 +632,70 @@ const ExpenseTracker = () => {
               savings={filteredSavings}
               onDeleteSaving={deleteSaving}
               onUpdateSaving={updateSaving}
-            />
-          </TabsContent>
-        </Tabs>
+              />
+            </TabsContent>
+            </Tabs>
 
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Income</p>
-              <p className="text-xl font-bold text-violet-600">{format(totalIncomes)}</p>
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Income</p>
+                  <p className="text-xl font-bold text-violet-600">{format(totalIncomes)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-xl font-bold text-foreground">{format(totalExpenses)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Net Cash Flow</p>
+                  <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {netCashFlow >= 0 ? '+' : ''}{format(netCashFlow)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Savings</p>
+                  <p className="text-xl font-bold text-emerald-600">{format(latestSavings)}</p>
+                </div>
+                <Select value={currency} onValueChange={(val) => setCurrency(val as Currency)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NTD">NTD</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="CAD">CAD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={importFromCSV}
+                  className="hidden"
+                />
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
+                  <Upload className="w-4 h-4" />
+                  Import
+                </Button>
+                <Button variant="outline" onClick={exportToCSV} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export
+                </Button>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Expenses</p>
-              <p className="text-xl font-bold text-foreground">{format(totalExpenses)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Net Cash Flow</p>
-              <p className={`text-xl font-bold ${netCashFlow >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {netCashFlow >= 0 ? '+' : ''}{format(netCashFlow)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Savings</p>
-              <p className="text-xl font-bold text-emerald-600">{format(latestSavings)}</p>
-            </div>
-            <Select value={currency} onValueChange={(val) => setCurrency(val as Currency)}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NTD">NTD</SelectItem>
-                <SelectItem value="USD">USD</SelectItem>
-                <SelectItem value="CAD">CAD</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={importFromCSV}
-              className="hidden"
+
+            <MonthlySummary
+              expenses={periodFilteredExpenses}
+              incomes={periodFilteredIncomes}
+              savings={periodFilteredSavings}
+              fixedExpenses={fixedExpenses}
             />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
-              <Upload className="w-4 h-4" />
-              Import
-            </Button>
-            <Button variant="outline" onClick={exportToCSV} className="gap-2">
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-          </div>
+
+            <CombinedChart expenses={periodFilteredExpenses} incomes={periodFilteredIncomes} savings={periodFilteredSavings} />
+          </main>
         </div>
-
-        <MonthlySummary
-          expenses={expenses}
-          incomes={incomes}
-          savings={savings}
-          fixedExpenses={fixedExpenses}
-        />
-
-        <CombinedChart expenses={expenses} incomes={incomes} savings={savings} />
       </div>
     </div>
   );
