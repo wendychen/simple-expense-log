@@ -281,7 +281,7 @@ const ExpenseTracker = () => {
   // Export/Import
   const exportToCSV = () => {
     const goalsWithContent = goals.filter((g) => g.title.trim());
-    if (expenses.length === 0 && incomes.length === 0 && savings.length === 0 && goalsWithContent.length === 0 && fixedExpenses.length === 0) {
+    if (expenses.length === 0 && incomes.length === 0 && savings.length === 0 && goalsWithContent.length === 0 && fixedExpenses.length === 0 && targets.length === 0) {
       toast({
         title: "No data to export",
         variant: "destructive",
@@ -310,13 +310,13 @@ const ExpenseTracker = () => {
       });
     }
 
-    // Export incomes
+    // Export incomes (including incomeType)
     if (incomes.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### INCOMES ###\n";
-      csvContent += "Date,Source,Amount,Note\n";
+      csvContent += "Date,Source,Amount,Note,IncomeType\n";
       incomes.forEach((inc) => {
-        csvContent += `${inc.date},"${inc.source.replace(/"/g, '""')}",${inc.amount.toFixed(2)},"${(inc.note || "").replace(/"/g, '""')}"\n`;
+        csvContent += `${inc.date},"${inc.source.replace(/"/g, '""')}",${inc.amount.toFixed(2)},"${(inc.note || "").replace(/"/g, '""')}",${inc.incomeType || "cash"}\n`;
       });
     }
 
@@ -340,6 +340,16 @@ const ExpenseTracker = () => {
       });
     }
 
+    // Export financial targets
+    if (targets.length > 0) {
+      if (csvContent) csvContent += "\n";
+      csvContent += "### TARGETS ###\n";
+      csvContent += "Type,Amount,Period,Currency,CreatedAt,UpdatedAt\n";
+      targets.forEach((target) => {
+        csvContent += `${target.type},${target.amount.toFixed(2)},${target.period},${target.currency},${target.createdAt},${target.updatedAt}\n`;
+      });
+    }
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -352,7 +362,7 @@ const ExpenseTracker = () => {
 
     toast({
       title: "Exported successfully",
-      description: `${fixedExpenses.length} fixed, ${expenses.length} expenses, ${incomes.length} incomes, ${savings.length} savings, ${goalsWithContent.length} goals`,
+      description: `${fixedExpenses.length} fixed, ${expenses.length} expenses, ${incomes.length} incomes, ${savings.length} savings, ${goalsWithContent.length} goals, ${targets.length} targets`,
     });
   };
 
@@ -371,7 +381,8 @@ const ExpenseTracker = () => {
         const importedSavings: Saving[] = [];
         const importedGoals: Goal[] = [];
         const importedFixedExpenses: FixedExpense[] = [];
-        let currentSection: "expenses" | "incomes" | "savings" | "goals" | "fixedExpenses" | null = null;
+        const importedTargets: FinancialTarget[] = [];
+        let currentSection: "expenses" | "incomes" | "savings" | "goals" | "fixedExpenses" | "targets" | null = null;
 
         for (const line of lines) {
           if (line.includes("### FIXED EXPENSES ###")) {
@@ -394,7 +405,11 @@ const ExpenseTracker = () => {
             currentSection = "goals";
             continue;
           }
-          if (line.toLowerCase().startsWith("date,") || line.toLowerCase().startsWith("title,") || line.toLowerCase().startsWith("description,")) continue;
+          if (line.includes("### TARGETS ###")) {
+            currentSection = "targets";
+            continue;
+          }
+          if (line.toLowerCase().startsWith("date,") || line.toLowerCase().startsWith("title,") || line.toLowerCase().startsWith("description,") || line.toLowerCase().startsWith("type,")) continue;
 
           const matches = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
           if (!matches) continue;
@@ -435,6 +450,26 @@ const ExpenseTracker = () => {
                 createdAt,
               });
             }
+          } else if (currentSection === "targets") {
+            if (matches.length < 4) continue;
+            const type = matches[0].replace(/"/g, "").trim() as FinancialTarget["type"];
+            const amount = parseFloat(matches[1].replace(/"/g, "").trim());
+            const period = matches[2]?.replace(/"/g, "").trim() as FinancialTarget["period"];
+            const currency = matches[3]?.replace(/"/g, "").trim() as "NTD" | "USD" | "CAD";
+            const createdAt = matches[4]?.replace(/"/g, "").trim() || new Date().toISOString();
+            const updatedAt = matches[5]?.replace(/"/g, "").trim() || createdAt;
+
+            if (["income", "expense", "savings"].includes(type) && !isNaN(amount) && ["weekly", "monthly", "quarterly", "yearly"].includes(period) && ["NTD", "USD", "CAD"].includes(currency)) {
+              importedTargets.push({
+                id: crypto.randomUUID(),
+                type,
+                amount,
+                period,
+                currency,
+                createdAt,
+                updatedAt,
+              });
+            }
           } else {
             if (matches.length < 3) continue;
             const date = matches[0].replace(/"/g, "").trim();
@@ -453,12 +488,13 @@ const ExpenseTracker = () => {
                 needsCheck: false,
               });
             } else if (currentSection === "incomes" && field2) {
+              const incomeType = matches[4]?.replace(/"/g, "").trim() as "cash" | "accrued" || "cash";
               importedIncomes.push({
                 id: crypto.randomUUID(),
                 date,
                 source: field2,
                 amount,
-                incomeType: "cash",
+                incomeType: incomeType === "accrued" ? "accrued" : "cash",
                 note: field4 || undefined,
               });
             } else if (currentSection === "savings") {
@@ -472,7 +508,7 @@ const ExpenseTracker = () => {
           }
         }
 
-        const hasData = importedExpenses.length > 0 || importedIncomes.length > 0 || importedSavings.length > 0 || importedGoals.length > 0 || importedFixedExpenses.length > 0;
+        const hasData = importedExpenses.length > 0 || importedIncomes.length > 0 || importedSavings.length > 0 || importedGoals.length > 0 || importedFixedExpenses.length > 0 || importedTargets.length > 0;
         if (hasData) {
           if (importedFixedExpenses.length > 0) setFixedExpenses(importedFixedExpenses);
           if (importedExpenses.length > 0) setExpenses(importedExpenses);
@@ -482,9 +518,10 @@ const ExpenseTracker = () => {
             const finalGoals = [...importedGoals.slice(0, 10)];
             setGoals(finalGoals);
           }
+          if (importedTargets.length > 0) setTargets(importedTargets);
           toast({
             title: "Imported successfully",
-            description: `${importedFixedExpenses.length} fixed, ${importedExpenses.length} expenses, ${importedIncomes.length} incomes, ${importedSavings.length} savings, ${importedGoals.length} goals`,
+            description: `${importedFixedExpenses.length} fixed, ${importedExpenses.length} expenses, ${importedIncomes.length} incomes, ${importedSavings.length} savings, ${importedGoals.length} goals, ${importedTargets.length} targets`,
           });
         } else {
           toast({
