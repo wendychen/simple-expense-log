@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Trash2, Pencil, Check, X } from "lucide-react";
+import { Trash2, Pencil, Check, X, PiggyBank, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Saving } from "@/types/saving";
+import { Badge } from "@/components/ui/badge";
+import { Saving, SavingType } from "@/types/saving";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 import {
   Select,
@@ -41,6 +42,7 @@ const SavingList = ({
   const [editNote, setEditNote] = useState("");
   const [editReviewCount, setEditReviewCount] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editSavingType, setEditSavingType] = useState<SavingType>("balance");
   const [currentPage, setCurrentPage] = useState(1);
 
   const startEdit = (saving: Saving) => {
@@ -51,6 +53,7 @@ const SavingList = ({
     setEditNote(saving.note || "");
     setEditReviewCount(saving.reviewCount?.toString() || "");
     setEditDate(saving.date);
+    setEditSavingType(saving.savingType || "balance");
   };
 
   const cancelEdit = () => {
@@ -69,6 +72,7 @@ const SavingList = ({
       note: editNote.trim() || undefined,
       reviewCount: editReviewCount ? parseInt(editReviewCount) : undefined,
       date: editDate,
+      savingType: editSavingType,
     });
     setEditingId(null);
   };
@@ -96,12 +100,25 @@ const SavingList = ({
       {paginatedSavings.map((saving, index) => (
         <div
           key={saving.id}
-          className="flex items-center justify-between p-3 bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow duration-200 animate-fade-in ring-1 ring-emerald-200 dark:ring-emerald-900"
+          className={`flex items-center justify-between p-3 bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow duration-200 animate-fade-in ring-1 ${
+            saving.savingType === "goal" 
+              ? "ring-purple-200 dark:ring-purple-900" 
+              : "ring-emerald-200 dark:ring-emerald-900"
+          }`}
           style={{ animationDelay: `${index * 50}ms` }}
         >
           {editingId === saving.id ? (
             <>
               <div className="flex-1 flex items-center gap-2 mr-2 flex-wrap">
+                <Select value={editSavingType} onValueChange={(val) => setEditSavingType(val as SavingType)}>
+                  <SelectTrigger className="h-8 w-24 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="balance">Balance</SelectItem>
+                    <SelectItem value="goal">Goal</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="date"
                   value={editDate}
@@ -166,6 +183,20 @@ const SavingList = ({
           ) : (
             <>
               <div className="flex items-center gap-3 flex-1 min-w-0">
+                <Badge 
+                  variant="outline" 
+                  className={`shrink-0 ${
+                    saving.savingType === "goal"
+                      ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+                  }`}
+                >
+                  {saving.savingType === "goal" ? (
+                    <><Target className="w-3 h-3 mr-1" />Goal</>
+                  ) : (
+                    <><PiggyBank className="w-3 h-3 mr-1" />Balance</>
+                  )}
+                </Badge>
                 <Input
                   type="number"
                   min="0"
@@ -182,7 +213,11 @@ const SavingList = ({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">
+                <span className={`font-semibold tabular-nums ${
+                  saving.savingType === "goal"
+                    ? "text-purple-600 dark:text-purple-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}>
                   {formatCurrency(saving.amount)}
                 </span>
                 <Button

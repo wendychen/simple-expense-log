@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PiggyBank } from "lucide-react";
-import { Saving } from "@/types/saving";
+import { PiggyBank, Target } from "lucide-react";
+import { Saving, SavingType } from "@/types/saving";
 import { useCurrency, Currency } from "@/hooks/use-currency";
 import {
   Select,
@@ -22,6 +22,7 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
   const [amount, setAmount] = useState("");
   const [inputCurrency, setInputCurrency] = useState<Currency>("NTD");
   const [note, setNote] = useState("");
+  const [savingType, setSavingType] = useState<SavingType>("balance");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +34,7 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
       date,
       amount: amountInNTD,
       note: note.trim() || undefined,
+      savingType,
     });
 
     setAmount("");
@@ -41,6 +43,18 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="w-28 shrink-0">
+        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Type</label>
+        <Select value={savingType} onValueChange={(val) => setSavingType(val as SavingType)}>
+          <SelectTrigger className="bg-card" data-testid="select-saving-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="balance">Balance</SelectItem>
+            <SelectItem value="goal">Goal</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex-1 min-w-0">
         <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Date</label>
         <Input
@@ -61,7 +75,7 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
         />
       </div>
       <div className="flex-1 min-w-0">
-        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Balance</label>
+        <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Amount</label>
         <div className="flex gap-2">
           <Input
             type="number"
@@ -84,8 +98,8 @@ const SavingForm = ({ onAddSaving }: SavingFormProps) => {
           </Select>
         </div>
       </div>
-      <Button type="submit" className="shrink-0 bg-emerald-600 hover:bg-emerald-700">
-        <PiggyBank className="w-4 h-4 mr-1.5" />
+      <Button type="submit" className={`shrink-0 ${savingType === "goal" ? "bg-purple-600 hover:bg-purple-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>
+        {savingType === "goal" ? <Target className="w-4 h-4 mr-1.5" /> : <PiggyBank className="w-4 h-4 mr-1.5" />}
         Add
       </Button>
     </form>

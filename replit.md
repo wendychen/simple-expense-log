@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Expense Tracking**: One-time expenses with date, description, amount, and review flags
 - **Fixed Expenses**: Recurring expenses with frequency options (weekly, monthly, quarterly, yearly)
 - **Income Tracking**: Income entries with source, date, optional notes, and income type (Cash or Accrued Revenue)
-- **Savings Tracking**: Savings balance snapshots over time
+- **Savings Tracking**: Savings entries with type (Balance for actual savings, Goal for desired savings) with bidirectional sync between goal entries and savings targets
 - **Goals**: Financial goals with deadlines, drag-and-drop reordering via dnd-kit
 - **Financial Targets**: Income targets, expense thresholds, and savings targets per currency and period with chart reference lines
 

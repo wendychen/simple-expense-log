@@ -41,7 +41,7 @@ const isDateInPeriod = (dateStr: string, period: TimePeriod | null): boolean => 
 
 const ExpenseTracker = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { format, currency, setCurrency } = useCurrency();
+  const { format, currency, setCurrency, convertToNTD, convertFromNTD } = useCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod | null>(null);
   
   const [expenses, setExpenses] = useState<Expense[]>(() => {
@@ -109,8 +109,8 @@ const ExpenseTracker = () => {
     localStorage.setItem("financialTargets", JSON.stringify(targets));
   }, [targets]);
 
-  // Target handlers
-  const updateTarget = (type: FinancialTarget["type"], amount: number, period: FinancialTarget["period"], targetCurrency: Currency) => {
+  // Target handlers with bidirectional sync for savings
+  const updateTarget = (type: FinancialTarget["type"], amount: number, period: FinancialTarget["period"], targetCurrency: Currency, skipSavingSync = false) => {
     setTargets(prev => {
       const existingIndex = prev.findIndex(t => t.type === type && t.period === period && t.currency === targetCurrency);
       const now = new Date().toISOString();
@@ -135,6 +135,33 @@ const ExpenseTracker = () => {
         }];
       }
     });
+
+    // When updating a savings target, sync to the latest goal saving entry
+    if (type === "savings" && !skipSavingSync) {
+      // Convert target amount (in targetCurrency) to NTD for storage
+      const amountInNTD = convertToNTD(amount, targetCurrency);
+      const today = new Date().toISOString().split("T")[0];
+      
+      setSavings(prev => {
+        // Find the latest goal saving by date
+        const goalSavings = prev.filter(s => s.savingType === "goal");
+        const latestGoal = goalSavings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        
+        if (latestGoal) {
+          // Update the latest goal saving
+          return prev.map(s => s.id === latestGoal.id ? { ...s, amount: amountInNTD } : s);
+        } else {
+          // Create a new goal saving for today
+          return [{
+            id: crypto.randomUUID(),
+            date: today,
+            amount: amountInNTD,
+            savingType: "goal" as const,
+            note: "Savings goal",
+          }, ...prev];
+        }
+      });
+    }
   };
 
   const getTarget = (type: FinancialTarget["type"], period: FinancialTarget["period"], targetCurrency: Currency): FinancialTarget | undefined => {
@@ -200,16 +227,24 @@ const ExpenseTracker = () => {
     toast({ title: "Income updated" });
   };
 
-  // Saving handlers
+  // Saving handlers with bidirectional sync for goals
   const addSaving = (saving: Omit<Saving, "id">) => {
     const newSaving: Saving = {
       ...saving,
       id: crypto.randomUUID(),
     };
     setSavings((prev) => [newSaving, ...prev]);
+    
+    // If adding a goal saving, sync to savings target (using skipSavingSync to prevent loop)
+    // Note: saving.amount is already in NTD, need to convert to current display currency for target
+    if (saving.savingType === "goal") {
+      const amountInDisplayCurrency = convertFromNTD(saving.amount, currency);
+      updateTarget("savings", amountInDisplayCurrency, "monthly", currency, true);
+    }
+    
     toast({
-      title: "Savings recorded",
-      description: `Balance: ${format(saving.amount)}`,
+      title: saving.savingType === "goal" ? "Savings goal set" : "Savings recorded",
+      description: `${saving.savingType === "goal" ? "Goal" : "Balance"}: ${format(saving.amount)}`,
     });
   };
 
@@ -219,9 +254,25 @@ const ExpenseTracker = () => {
   };
 
   const updateSaving = (id: string, updates: Partial<Omit<Saving, "id">>) => {
+    const existingSaving = savings.find(s => s.id === id);
+    
     setSavings((prev) =>
       prev.map((sav) => (sav.id === id ? { ...sav, ...updates } : sav))
     );
+    
+    // Sync to target if:
+    // 1. Amount changed and saving is/becomes a goal
+    // 2. Type changed to goal (regardless of amount change)
+    const newType = updates.savingType ?? existingSaving?.savingType;
+    const newAmount = updates.amount ?? existingSaving?.amount;
+    const wasGoal = existingSaving?.savingType === "goal";
+    const isGoal = newType === "goal";
+    
+    if (isGoal && newAmount !== undefined && (updates.amount !== undefined || (!wasGoal && isGoal))) {
+      const amountInDisplayCurrency = convertFromNTD(newAmount, currency);
+      updateTarget("savings", amountInDisplayCurrency, "monthly", currency, true);
+    }
+    
     toast({ title: "Savings updated" });
   };
 
@@ -320,13 +371,13 @@ const ExpenseTracker = () => {
       });
     }
 
-    // Export savings
+    // Export savings (including savingType)
     if (savings.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### SAVINGS ###\n";
-      csvContent += "Date,Note,Amount\n";
+      csvContent += "Date,Note,Amount,SavingType\n";
       savings.forEach((sav) => {
-        csvContent += `${sav.date},"${(sav.note || "").replace(/"/g, '""')}",${sav.amount.toFixed(2)}\n`;
+        csvContent += `${sav.date},"${(sav.note || "").replace(/"/g, '""')}",${sav.amount.toFixed(2)},${sav.savingType || "balance"}\n`;
       });
     }
 
@@ -498,11 +549,13 @@ const ExpenseTracker = () => {
                 note: field4 || undefined,
               });
             } else if (currentSection === "savings") {
+              const savingType = matches[3]?.replace(/"/g, "").trim() as "balance" | "goal" || "balance";
               importedSavings.push({
                 id: crypto.randomUUID(),
                 date,
                 amount,
                 note: field2 || undefined,
+                savingType: savingType === "goal" ? "goal" : "balance",
               });
             }
           }
