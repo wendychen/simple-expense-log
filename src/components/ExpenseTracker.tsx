@@ -544,7 +544,11 @@ const ExpenseTracker = () => {
             const amount = parseFloat(matches[1].replace(/"/g, "").trim());
             const frequency = matches[2]?.replace(/"/g, "").trim() as "weekly" | "monthly" | "quarterly" | "yearly";
             const isActive = matches[3]?.replace(/"/g, "").trim().toLowerCase() !== "false";
-            const category = matches[4]?.replace(/"/g, "").trim() as FixedExpenseCategory || "utilities";
+            const categoryField = matches[4]?.replace(/"/g, "").trim();
+            const validFixedCategories: FixedExpenseCategory[] = ["housing", "utilities", "transportation", "health", "financial-obligations", "taxes"];
+            const category = (categoryField && validFixedCategories.includes(categoryField as FixedExpenseCategory))
+              ? (categoryField as FixedExpenseCategory)
+              : "housing";
             const createdAt = matches[5]?.replace(/"/g, "").trim() || new Date().toISOString();
 
             if (description && !isNaN(amount)) {
@@ -612,7 +616,10 @@ const ExpenseTracker = () => {
             if (!date || isNaN(amount)) continue;
 
             if (currentSection === "expenses" && field2) {
-              const category = field4 as ExpenseCategory || "misc";
+              const validCategories: ExpenseCategory[] = ["food", "lifestyle", "family", "misc"];
+              const category = (field4 && validCategories.includes(field4 as ExpenseCategory))
+                ? (field4 as ExpenseCategory)
+                : "misc";
               importedExpenses.push({
                 id: crypto.randomUUID(),
                 date,

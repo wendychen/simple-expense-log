@@ -380,14 +380,19 @@ const SankeyVisualization = ({ data, onNodeClick, formatCurrency }: SankeyVisual
     let rowIdx: number;
     let totalInCol: number;
 
-    if (isDetailView && links.some(link => link.source === node.id)) {
-      col = 0;
-      rowIdx = 0;
-      totalInCol = 1;
-    } else if (isDetailView) {
-      col = 2;
-      rowIdx = nodes.filter((n, i) => i > 0).indexOf(node);
-      totalInCol = nodes.length - 1;
+    if (isDetailView) {
+      const isSource = links.some(link => link.source === node.id);
+
+      if (isSource) {
+        col = 0;
+        rowIdx = 0;
+        totalInCol = 1;
+      } else {
+        col = 2;
+        const targetNodes = nodes.filter(n => links.some(link => link.target === n.id));
+        rowIdx = targetNodes.indexOf(node);
+        totalInCol = targetNodes.length;
+      }
     } else {
       col = idx % 3;
       rowIdx = columns[col].indexOf(node);
