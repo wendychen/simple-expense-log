@@ -22,25 +22,25 @@ export interface CategoryMetadata {
 export const EXPENSE_CATEGORIES: Record<ExpenseCategory, CategoryMetadata> = {
   food: {
     label: 'Food',
-    color: 'emerald-500',
+    color: 'text-emerald-500',
     icon: 'UtensilsCrossed',
     description: 'Meals, groceries, and dining expenses',
   },
   lifestyle: {
     label: 'Lifestyle',
-    color: 'pink-500',
+    color: 'text-pink-500',
     icon: 'Sparkles',
     description: 'Entertainment, hobbies, and personal interests',
   },
   family: {
     label: 'Family',
-    color: 'cyan-500',
+    color: 'text-cyan-500',
     icon: 'Users',
     description: 'Family-related expenses and activities',
   },
   misc: {
     label: 'Misc',
-    color: 'slate-500',
+    color: 'text-slate-500',
     icon: 'Package',
     description: 'Other uncategorized expenses',
   },
