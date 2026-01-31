@@ -169,6 +169,9 @@ const ExpenseList = ({
               {dayExpenses.map((expense, index) => {
                 const categoryKey = (expense.category || "misc") as ExpenseCategory;
                 const categoryMeta = EXPENSE_CATEGORIES[categoryKey];
+
+                console.log(categoryKey);
+                console.log(categoryMeta);
                 return (
                 <div
                   key={expense.id}
