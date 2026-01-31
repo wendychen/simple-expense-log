@@ -46,7 +46,7 @@ const ExpenseList = ({
   const [editCurrency, setEditCurrency] = useState<Currency>("NTD");
   const [editReviewCount, setEditReviewCount] = useState("");
   const [editDate, setEditDate] = useState("");
-  const [editCategory, setEditCategory] = useState<ExpenseCategory>("miscellaneous");
+  const [editCategory, setEditCategory] = useState<ExpenseCategory>("misc");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -55,7 +55,7 @@ const ExpenseList = ({
       case "food": return <UtensilsCrossed className="h-3 w-3" />;
       case "lifestyle": return <Sparkles className="h-3 w-3" />;
       case "family": return <Users className="h-3 w-3" />;
-      case "miscellaneous": return <Package className="h-3 w-3" />;
+      case "misc": return <Package className="h-3 w-3" />;
     }
   };
 
@@ -67,7 +67,7 @@ const ExpenseList = ({
     setEditCurrency(currency);
     setEditReviewCount(expense.reviewCount?.toString() || "");
     setEditDate(expense.date);
-    setEditCategory(expense.category || "miscellaneous");
+    setEditCategory(expense.category || "misc");
   };
 
   const cancelEdit = () => {
@@ -76,7 +76,7 @@ const ExpenseList = ({
     setEditAmount("");
     setEditReviewCount("");
     setEditDate("");
-    setEditCategory("miscellaneous");
+    setEditCategory("misc");
   };
 
   const saveEdit = (id: string) => {
@@ -263,10 +263,10 @@ const ExpenseList = ({
                           className="data-[state=checked]:bg-yellow-400 shrink-0"
                         />
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <Badge variant="outline" className={`text-${EXPENSE_CATEGORIES[expense.category || "miscellaneous"].color} border-current shrink-0`}>
+                          <Badge variant="outline" className={`text-${EXPENSE_CATEGORIES[expense.category || "misc"].color} border-current shrink-0`}>
                             <div className="flex items-center gap-1">
-                              {getCategoryIcon(expense.category || "miscellaneous")}
-                              <span className="text-xs">{EXPENSE_CATEGORIES[expense.category || "miscellaneous"].label}</span>
+                              {getCategoryIcon(expense.category || "misc")}
+                              <span className="text-xs">{EXPENSE_CATEGORIES[expense.category || "misc"].label}</span>
                             </div>
                           </Badge>
                           <span className="text-foreground font-medium truncate">
