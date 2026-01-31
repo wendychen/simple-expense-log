@@ -20,7 +20,7 @@ interface ExpenseFormProps {
 const ExpenseForm = ({ onAddExpense }: ExpenseFormProps) => {
   const { convertToNTD } = useCurrency();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [category, setCategory] = useState<ExpenseCategory>("miscellaneous");
+  const [category, setCategory] = useState<ExpenseCategory>("misc");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [inputCurrency, setInputCurrency] = useState<Currency>("NTD");
@@ -39,7 +39,7 @@ const ExpenseForm = ({ onAddExpense }: ExpenseFormProps) => {
       category,
     });
 
-    setCategory("miscellaneous");
+    setCategory("misc");
     setDescription("");
     setAmount("");
   };
@@ -49,7 +49,7 @@ const ExpenseForm = ({ onAddExpense }: ExpenseFormProps) => {
       case "food": return <UtensilsCrossed className="h-4 w-4" />;
       case "lifestyle": return <Sparkles className="h-4 w-4" />;
       case "family": return <Users className="h-4 w-4" />;
-      case "miscellaneous": return <Package className="h-4 w-4" />;
+      case "misc": return <Package className="h-4 w-4" />;
     }
   };
 
