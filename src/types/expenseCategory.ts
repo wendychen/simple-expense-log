@@ -14,7 +14,7 @@ export type FixedExpenseCategory =
 
 export interface CategoryMetadata {
   label: string;
-  colorClass: string;
+  color: string;
   icon: string;
   description: string;
 }
