@@ -168,7 +168,7 @@ const ExpenseList = ({
             <div className="space-y-2">
               {dayExpenses.map((expense, index) => (
                 const categoryKey = (expense.category || "misc") as ExpenseCategory;
-                const categoryMeta = EXPENSE_CATEGORIES[categoryKey];
+                const categoryMeta = ExpenseCategory[categoryKey];
                 return (
               
                 <div
