@@ -2,7 +2,7 @@ export type ExpenseCategory =
   | 'food'
   | 'lifestyle'
   | 'family'
-  | 'miscellaneous';
+  | 'misc';
 
 export type FixedExpenseCategory =
   | 'housing'
