@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Search } from "lucide-react";
+import { Download, Upload, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,9 @@ const ExpenseTracker = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { format, currency, setCurrency, convertToNTD, convertFromNTD } = useCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod | null>(null);
+  const [isTimeNavOpen, setIsTimeNavOpen] = useState(true);
+  const [isCashFlowOpen, setIsCashFlowOpen] = useState(true);
+  const [isSankeyOpen, setIsSankeyOpen] = useState(true);
   
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem("expenses");
@@ -721,10 +725,20 @@ const ExpenseTracker = () => {
         <div className="flex gap-6">
           <aside className="w-64 flex-shrink-0 hidden lg:block">
             <div className="sticky top-6">
-              <TimeNavigator
-                selectedPeriod={selectedPeriod}
-                onSelectPeriod={setSelectedPeriod}
-              />
+              <Collapsible open={isTimeNavOpen} onOpenChange={setIsTimeNavOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full flex items-center justify-between p-3 hover:bg-accent">
+                    <span className="font-semibold text-sm">Time Navigator</span>
+                    {isTimeNavOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <TimeNavigator
+                    selectedPeriod={selectedPeriod}
+                    onSelectPeriod={setSelectedPeriod}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </aside>
 
@@ -741,10 +755,20 @@ const ExpenseTracker = () => {
             </div>
 
             <div className="lg:hidden mb-4">
-              <TimeNavigator
-                selectedPeriod={selectedPeriod}
-                onSelectPeriod={setSelectedPeriod}
-              />
+              <Collapsible open={isTimeNavOpen} onOpenChange={setIsTimeNavOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full flex items-center justify-between p-3 hover:bg-accent border border-border rounded-lg mb-2">
+                    <span className="font-semibold text-sm">Time Navigator</span>
+                    {isTimeNavOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <TimeNavigator
+                    selectedPeriod={selectedPeriod}
+                    onSelectPeriod={setSelectedPeriod}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <Tabs defaultValue="expenses" className="mb-6">
@@ -910,23 +934,47 @@ const ExpenseTracker = () => {
               fixedExpenses={fixedExpenses}
             />
 
-            <CombinedChart
-              expenses={periodFilteredExpenses}
-              incomes={periodFilteredIncomes}
-              savings={periodFilteredSavings}
-              targets={targets}
-              onUpdateTarget={updateTarget}
-              selectedPeriod={selectedPeriod}
-            />
+            <Collapsible open={isCashFlowOpen} onOpenChange={setIsCashFlowOpen} className="mb-6">
+              <div className="border border-border rounded-xl overflow-hidden">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full flex items-center justify-between p-4 hover:bg-accent rounded-none">
+                    <span className="font-semibold text-base">Cash Flow Trend</span>
+                    {isCashFlowOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CombinedChart
+                    expenses={periodFilteredExpenses}
+                    incomes={periodFilteredIncomes}
+                    savings={periodFilteredSavings}
+                    targets={targets}
+                    onUpdateTarget={updateTarget}
+                    selectedPeriod={selectedPeriod}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
 
-            <SankeyFlowChart
-              expenses={periodFilteredExpenses}
-              incomes={periodFilteredIncomes}
-              savings={periodFilteredSavings}
-              goals={goals}
-              fixedExpenses={fixedExpenses}
-              selectedPeriod={selectedPeriod}
-            />
+            <Collapsible open={isSankeyOpen} onOpenChange={setIsSankeyOpen}>
+              <div className="border border-border rounded-xl overflow-hidden">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full flex items-center justify-between p-4 hover:bg-accent rounded-none">
+                    <span className="font-semibold text-base">Financial Flow Diagram</span>
+                    {isSankeyOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SankeyFlowChart
+                    expenses={periodFilteredExpenses}
+                    incomes={periodFilteredIncomes}
+                    savings={periodFilteredSavings}
+                    goals={goals}
+                    fixedExpenses={fixedExpenses}
+                    selectedPeriod={selectedPeriod}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
           </main>
         </div>
       </div>
