@@ -38,8 +38,8 @@ export const EXPENSE_CATEGORIES: Record<ExpenseCategory, CategoryMetadata> = {
     icon: 'Users',
     description: 'Family-related expenses and activities',
   },
-  miscellaneous: {
-    label: 'Miscellaneous',
+  misc: {
+    label: 'Misc',
     color: 'slate-500',
     icon: 'Package',
     description: 'Other uncategorized expenses',
