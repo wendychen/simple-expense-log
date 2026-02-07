@@ -619,6 +619,9 @@ const ExpenseTracker = () => {
   };
 
   // Export/Import
+  const escCsv = (val: string) => `"${val.replace(/"/g, '""')}"`;
+  const jsonCsv = (val: unknown) => `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+
   const exportToCSV = () => {
     const goalsWithContent = goals.filter((g) => g.title.trim());
     if (expenses.length === 0 && incomes.length === 0 && savings.length === 0 && goalsWithContent.length === 0 && fixedExpenses.length === 0 && targets.length === 0) {
@@ -631,56 +634,50 @@ const ExpenseTracker = () => {
 
     let csvContent = "";
 
-    // Export fixed expenses
     if (fixedExpenses.length > 0) {
       csvContent += "### FIXED EXPENSES ###\n";
       csvContent += "Description,Amount,Frequency,IsActive,Category,CreatedAt\n";
       fixedExpenses.forEach((exp) => {
-        csvContent += `"${exp.description.replace(/"/g, '""')}",${exp.amount.toFixed(2)},${exp.frequency},${exp.isActive},${exp.category},${exp.createdAt}\n`;
+        csvContent += `${escCsv(exp.description)},${exp.amount.toFixed(2)},${exp.frequency},${exp.isActive},${exp.category},${exp.createdAt}\n`;
       });
     }
 
-    // Export expenses
     if (expenses.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### EXPENSES ###\n";
-      csvContent += "Date,Description,Amount,Category\n";
+      csvContent += "Date,Description,Amount,Category,NeedsCheck,ReviewCount,LinkedGoalId,LinkedTaskId,LinkedTaskType\n";
       expenses.forEach((exp) => {
-        csvContent += `${exp.date},"${exp.description.replace(/"/g, '""')}",${exp.amount.toFixed(2)},${exp.category}\n`;
+        csvContent += `${exp.date},${escCsv(exp.description)},${exp.amount.toFixed(2)},${exp.category},${exp.needsCheck},${exp.reviewCount ?? ""},${exp.linkedGoalId || ""},${exp.linkedTaskId || ""},${exp.linkedTaskType || ""}\n`;
       });
     }
 
-    // Export incomes (including incomeType)
     if (incomes.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### INCOMES ###\n";
-      csvContent += "Date,Source,Amount,Note,IncomeType\n";
+      csvContent += "Date,Source,Amount,Note,IncomeType,ReviewCount\n";
       incomes.forEach((inc) => {
-        csvContent += `${inc.date},"${inc.source.replace(/"/g, '""')}",${inc.amount.toFixed(2)},"${(inc.note || "").replace(/"/g, '""')}",${inc.incomeType || "cash"}\n`;
+        csvContent += `${inc.date},${escCsv(inc.source)},${inc.amount.toFixed(2)},${escCsv(inc.note || "")},${inc.incomeType || "cash"},${inc.reviewCount ?? ""}\n`;
       });
     }
 
-    // Export savings (including savingType)
     if (savings.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### SAVINGS ###\n";
-      csvContent += "Date,Note,Amount,SavingType\n";
+      csvContent += "Date,Note,Amount,SavingType,ReviewCount\n";
       savings.forEach((sav) => {
-        csvContent += `${sav.date},"${(sav.note || "").replace(/"/g, '""')}",${sav.amount.toFixed(2)},${sav.savingType || "balance"}\n`;
+        csvContent += `${sav.date},${escCsv(sav.note || "")},${sav.amount.toFixed(2)},${sav.savingType || "balance"},${sav.reviewCount ?? ""}\n`;
       });
     }
 
-    // Export goals
     if (goalsWithContent.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### GOALS ###\n";
-      csvContent += "Title,Deadline,Completed,IsMagicWand,CreatedAt\n";
+      csvContent += "Title,Deadline,Completed,IsMagicWand,Category,Constraint,CreatedAt,UrlPack,PreTasks,PostTasks,PostDreams,Ideations\n";
       goalsWithContent.forEach((goal) => {
-        csvContent += `"${goal.title.replace(/"/g, '""')}",${goal.deadline || ""},${goal.completed},${goal.isMagicWand || false},${goal.createdAt}\n`;
+        csvContent += `${escCsv(goal.title)},${goal.deadline || ""},${goal.completed},${goal.isMagicWand || false},${goal.category || "misc"},${escCsv(goal.constraint || "")},${goal.createdAt},${jsonCsv(goal.urlPack || [])},${jsonCsv(goal.preTasks || [])},${jsonCsv(goal.postTasks || [])},${jsonCsv(goal.postDreams || [])},${jsonCsv(goal.ideations || [])}\n`;
       });
     }
 
-    // Export financial targets
     if (targets.length > 0) {
       if (csvContent) csvContent += "\n";
       csvContent += "### TARGETS ###\n";
@@ -704,6 +701,47 @@ const ExpenseTracker = () => {
       title: "Exported successfully",
       description: `${fixedExpenses.length} fixed, ${expenses.length} expenses, ${incomes.length} incomes, ${savings.length} savings, ${goalsWithContent.length} goals, ${targets.length} targets`,
     });
+  };
+
+  const parseCsvFields = (line: string): string[] => {
+    const fields: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          current += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ',') {
+          fields.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+    }
+    fields.push(current.trim());
+    return fields;
+  };
+
+  const parseJsonField = <T,>(val: string, fallback: T): T => {
+    if (!val) return fallback;
+    try {
+      return JSON.parse(val) as T;
+    } catch {
+      return fallback;
+    }
   };
 
   const importFromCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -751,21 +789,21 @@ const ExpenseTracker = () => {
           }
           if (line.toLowerCase().startsWith("date,") || line.toLowerCase().startsWith("title,") || line.toLowerCase().startsWith("description,") || line.toLowerCase().startsWith("type,")) continue;
 
-          const matches = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
-          if (!matches) continue;
+          const f = parseCsvFields(line);
+          if (f.length < 2) continue;
 
           if (currentSection === "fixedExpenses") {
-            if (matches.length < 3) continue;
-            const description = matches[0].replace(/"/g, "").trim();
-            const amount = parseFloat(matches[1].replace(/"/g, "").trim());
-            const frequency = matches[2]?.replace(/"/g, "").trim() as "weekly" | "monthly" | "quarterly" | "yearly";
-            const isActive = matches[3]?.replace(/"/g, "").trim().toLowerCase() !== "false";
-            const categoryField = matches[4]?.replace(/"/g, "").trim();
+            if (f.length < 3) continue;
+            const description = f[0];
+            const amount = parseFloat(f[1]);
+            const frequency = f[2] as "weekly" | "monthly" | "quarterly" | "yearly";
+            const isActive = f[3]?.toLowerCase() !== "false";
+            const categoryField = f[4];
             const validFixedCategories: FixedExpenseCategory[] = ["housing", "utilities", "transportation", "health", "financial-obligations", "taxes"];
             const category = (categoryField && validFixedCategories.includes(categoryField as FixedExpenseCategory))
               ? (categoryField as FixedExpenseCategory)
               : "housing";
-            const createdAt = matches[5]?.replace(/"/g, "").trim() || new Date().toISOString();
+            const createdAt = f[5] || new Date().toISOString();
 
             if (description && !isNaN(amount)) {
               importedFixedExpenses.push({
@@ -779,12 +817,22 @@ const ExpenseTracker = () => {
               });
             }
           } else if (currentSection === "goals") {
-            if (matches.length < 2) continue;
-            const title = matches[0].replace(/"/g, "").trim();
-            const deadline = matches[1]?.replace(/"/g, "").trim() || "";
-            const completed = matches[2]?.replace(/"/g, "").trim().toLowerCase() === "true";
-            const isMagicWand = matches[3]?.replace(/"/g, "").trim().toLowerCase() === "true";
-            const createdAt = matches[4]?.replace(/"/g, "").trim() || new Date().toISOString();
+            const title = f[0];
+            const deadline = f[1] || "";
+            const completed = f[2]?.toLowerCase() === "true";
+            const isMagicWand = f[3]?.toLowerCase() === "true";
+            const categoryField = f[4];
+            const validCategories: ExpenseCategory[] = ["food", "lifestyle", "family", "misc"];
+            const category = (categoryField && validCategories.includes(categoryField as ExpenseCategory))
+              ? (categoryField as ExpenseCategory)
+              : "misc";
+            const constraint = f[5] || "";
+            const createdAt = f[6] || new Date().toISOString();
+            const urlPack = parseJsonField<string[]>(f[7], []);
+            const preTasks = parseJsonField(f[8], []);
+            const postTasks = parseJsonField(f[9], []);
+            const postDreams = parseJsonField(f[10], []);
+            const ideations = parseJsonField(f[11], []);
 
             if (title) {
               importedGoals.push({
@@ -793,77 +841,103 @@ const ExpenseTracker = () => {
                 deadline,
                 completed,
                 isMagicWand,
+                category,
                 createdAt,
-                preTasks: [],
-                postTasks: [],
-                postDreams: [],
-                ideations: [],
-                constraint: "",
-                urlPack: [],
+                constraint,
+                urlPack,
+                preTasks,
+                postTasks,
+                postDreams,
+                ideations,
               });
             }
           } else if (currentSection === "targets") {
-            if (matches.length < 4) continue;
-            const type = matches[0].replace(/"/g, "").trim() as FinancialTarget["type"];
-            const amount = parseFloat(matches[1].replace(/"/g, "").trim());
-            const period = matches[2]?.replace(/"/g, "").trim() as FinancialTarget["period"];
-            const currency = matches[3]?.replace(/"/g, "").trim() as "NTD" | "USD" | "CAD";
-            const createdAt = matches[4]?.replace(/"/g, "").trim() || new Date().toISOString();
-            const updatedAt = matches[5]?.replace(/"/g, "").trim() || createdAt;
+            if (f.length < 4) continue;
+            const type = f[0] as FinancialTarget["type"];
+            const amount = parseFloat(f[1]);
+            const period = f[2] as FinancialTarget["period"];
+            const cur = f[3] as "NTD" | "USD" | "CAD";
+            const createdAt = f[4] || new Date().toISOString();
+            const updatedAt = f[5] || createdAt;
 
-            if (["income", "expense", "savings"].includes(type) && !isNaN(amount) && ["weekly", "monthly", "quarterly", "yearly"].includes(period) && ["NTD", "USD", "CAD"].includes(currency)) {
+            if (["income", "expense", "savings"].includes(type) && !isNaN(amount) && ["weekly", "monthly", "quarterly", "yearly"].includes(period) && ["NTD", "USD", "CAD"].includes(cur)) {
               importedTargets.push({
                 id: crypto.randomUUID(),
                 type,
                 amount,
                 period,
-                currency,
+                currency: cur,
                 createdAt,
                 updatedAt,
               });
             }
-          } else {
-            if (matches.length < 3) continue;
-            const date = matches[0].replace(/"/g, "").trim();
-            const field2 = matches[1].replace(/"/g, "").trim();
-            const amount = parseFloat(matches[2].replace(/"/g, "").trim());
-            const field4 = matches[3]?.replace(/"/g, "").trim();
+          } else if (currentSection === "expenses") {
+            if (f.length < 3) continue;
+            const date = f[0];
+            const description = f[1];
+            const amount = parseFloat(f[2]);
+            if (!date || !description || isNaN(amount)) continue;
 
+            const validCategories: ExpenseCategory[] = ["food", "lifestyle", "family", "misc"];
+            const category = (f[3] && validCategories.includes(f[3] as ExpenseCategory))
+              ? (f[3] as ExpenseCategory)
+              : "misc";
+            const needsCheck = f[4]?.toLowerCase() === "true";
+            const reviewCount = f[5] ? parseInt(f[5]) : undefined;
+            const linkedGoalId = f[6] || undefined;
+            const linkedTaskId = f[7] || undefined;
+            const linkedTaskType = (f[8] === "pre" || f[8] === "post" || f[8] === "dream") ? f[8] as "pre" | "post" | "dream" : undefined;
+
+            importedExpenses.push({
+              id: crypto.randomUUID(),
+              date,
+              description,
+              amount,
+              category,
+              needsCheck,
+              reviewCount: reviewCount && !isNaN(reviewCount) ? reviewCount : undefined,
+              linkedGoalId,
+              linkedTaskId,
+              linkedTaskType,
+            });
+          } else if (currentSection === "incomes") {
+            if (f.length < 3) continue;
+            const date = f[0];
+            const source = f[1];
+            const amount = parseFloat(f[2]);
+            if (!date || !source || isNaN(amount)) continue;
+
+            const note = f[3] || undefined;
+            const incomeType = f[4] === "accrued" ? "accrued" as const : "cash" as const;
+            const reviewCount = f[5] ? parseInt(f[5]) : undefined;
+
+            importedIncomes.push({
+              id: crypto.randomUUID(),
+              date,
+              source,
+              amount,
+              incomeType,
+              note,
+              reviewCount: reviewCount && !isNaN(reviewCount) ? reviewCount : undefined,
+            });
+          } else if (currentSection === "savings") {
+            if (f.length < 3) continue;
+            const date = f[0];
+            const note = f[1] || undefined;
+            const amount = parseFloat(f[2]);
             if (!date || isNaN(amount)) continue;
 
-            if (currentSection === "expenses" && field2) {
-              const validCategories: ExpenseCategory[] = ["food", "lifestyle", "family", "misc"];
-              const category = (field4 && validCategories.includes(field4 as ExpenseCategory))
-                ? (field4 as ExpenseCategory)
-                : "misc";
-              importedExpenses.push({
-                id: crypto.randomUUID(),
-                date,
-                description: field2,
-                amount,
-                category,
-                needsCheck: false,
-              });
-            } else if (currentSection === "incomes" && field2) {
-              const incomeType = matches[4]?.replace(/"/g, "").trim() as "cash" | "accrued" || "cash";
-              importedIncomes.push({
-                id: crypto.randomUUID(),
-                date,
-                source: field2,
-                amount,
-                incomeType: incomeType === "accrued" ? "accrued" : "cash",
-                note: field4 || undefined,
-              });
-            } else if (currentSection === "savings") {
-              const savingType = matches[3]?.replace(/"/g, "").trim() as "balance" | "goal" || "balance";
-              importedSavings.push({
-                id: crypto.randomUUID(),
-                date,
-                amount,
-                note: field2 || undefined,
-                savingType: savingType === "goal" ? "goal" : "balance",
-              });
-            }
+            const savingType = f[3] === "goal" ? "goal" as const : "balance" as const;
+            const reviewCount = f[4] ? parseInt(f[4]) : undefined;
+
+            importedSavings.push({
+              id: crypto.randomUUID(),
+              date,
+              amount,
+              note,
+              savingType,
+              reviewCount: reviewCount && !isNaN(reviewCount) ? reviewCount : undefined,
+            });
           }
         }
 
